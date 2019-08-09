@@ -17,7 +17,7 @@ app = Celery()
 @app.task(
     bind=True,
     soft_time_limit=None,  # temporary unimplemented. You can help me
-    time_limit=300,
+    time_limit=300,  # raises futures.TimeoutError on timeout
 )
 async def my_task(self, *args, **kwargs):
     await asyncio.sleep(5)
@@ -26,5 +26,11 @@ async def my_task(self, *args, **kwargs):
 @app.task
 async def my_simple_task(*args, **kwargs):
     await asyncio.sleep(5)
+```
+
+Then run celery:
+
+```
+$ celery worker -A hello_async_celery.app -P celery_pool_asyncio:TaskPool
 ```
 
