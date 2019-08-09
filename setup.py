@@ -31,7 +31,7 @@ setup(
     description="Celery pool to run coroutine tasks",
     install_requires=requirements,
     license="Apache Software License 2.0",
-    long_description=readme  # + '\n\n' + history,
+    long_description=readme,  # + '\n\n' + history,
     long_description_content_type='text/markdown',  # This is important!
     include_package_data=True,
     keywords='celery_pool_asyncio',
