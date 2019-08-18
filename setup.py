@@ -11,6 +11,7 @@ with open('README.md') as readme_file:
 
 requirements = [
     'celery',
+    'asgiref',
 ]
 
 setup_requirements = [
@@ -41,6 +42,6 @@ setup(
     test_suite='tests',
     #tests_require=test_requirements,
     url='https://github.com/kai3341/celery-pool-asyncio',
-    version='0.1.0',
+    version='0.1.2',
     zip_safe=True,
 )
