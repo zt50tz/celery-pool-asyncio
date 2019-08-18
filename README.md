@@ -1,6 +1,8 @@
 Celery Pool AsyncIO
 ===============
 
+![Logo](https://repository-images.githubusercontent.com/198568368/35298e00-c1e8-11e9-8bcf-76c57ee28db8)
+
 * Free software: Apache Software License 2.0
 
 Features
