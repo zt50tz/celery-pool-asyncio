@@ -1,8 +1,20 @@
-from celery.app import task
+import asyncio
+from celery.app import Celery
 from asgiref import sync
 
 
-def patch():
-    apply_async = task.Task.apply_async
-    apply_async = sync.sync_to_async(apply_async)
-    task.Task.apply_async = apply_async
+def gentask(corofunc):
+    def wrapper(*args, **kwargs):
+        coro = corofunc(*args, **kwargs)
+        return asyncio.create_task(coro)
+    return wrapper
+        
+
+def patch(as_task=False):
+    send_task = Celery.send_task
+    send_task = sync.sync_to_async(send_task)
+
+    if as_task:
+        send_task = gentask(send_task)
+
+    Celery.send_task = send_task

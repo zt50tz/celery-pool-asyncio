@@ -6,8 +6,13 @@ from setuptools import setup, find_packages
 with open('README.md') as readme_file:
     readme = readme_file.read()
 
-#with open('HISTORY.md') as history_file:
-#    history = history_file.read()
+with open('HISTORY.md') as history_file:
+    history = history_file.read()
+
+long_description = '\n\n'.join((
+    readme,
+    history,
+))
 
 requirements = [
     'celery',
@@ -32,7 +37,7 @@ setup(
     description="Celery pool to run coroutine tasks",
     install_requires=requirements,
     license="Apache Software License 2.0",
-    long_description=readme,  # + '\n\n' + history,
+    long_description=long_description,
     long_description_content_type='text/markdown',  # This is important!
     include_package_data=True,
     keywords='celery_pool_asyncio',
@@ -42,6 +47,6 @@ setup(
     test_suite='tests',
     #tests_require=test_requirements,
     url='https://github.com/kai3341/celery-pool-asyncio',
-    version='0.1.2',
+    version='0.1.4',
     zip_safe=True,
 )
