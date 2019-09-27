@@ -1,5 +1,4 @@
 import sys
-import time
 import asyncio
 from threading import Thread
 from celery.concurrency import base
@@ -29,11 +28,13 @@ class TaskPool(base.BasePool):
         self.loop_runner.join()
 
     async def async_shutdown(self):
+        """Shutdown works fine inside eventloop thread only"""
         self._pool.stop()
         await self._pool.shutdown_asyncgens()
         await self._pool.aclose()
 
     def try_stop(self):
+        """Shutdown should be happend after last task has been done"""
         if self.running_tasks == 0:
             coro = self.async_shutdown()
             asyncio.run_coroutine_threadsafe(
@@ -59,9 +60,10 @@ class TaskPool(base.BasePool):
         kwargs=None,
         **options,
     ):
+        """Looks crazy"""
         (
             task,
-            uuid,
+            task_uuid,
             request,
             body,
             content_type,
@@ -94,7 +96,7 @@ class TaskPool(base.BasePool):
 
         coro = self.task_coro(
             target_task,
-            uuid,
+            task_uuid,
             task_args,
             task_kwargs,
             request,
@@ -116,7 +118,7 @@ class TaskPool(base.BasePool):
     async def task_coro(
         self,
         coro_function,
-        uuid,
+        task_uuid,
         coro_args,
         coro_kwargs,
         request,
@@ -146,7 +148,7 @@ class TaskPool(base.BasePool):
                 )
 
                 trace_ok_coro = coro_function.__trace__(
-                    uuid,
+                    task_uuid,
                     coro_args,
                     coro_kwargs,
                     request,
@@ -154,14 +156,13 @@ class TaskPool(base.BasePool):
 
                 try:
                     retval = await asyncio.wait_for(trace_ok_coro, timeout)
+                    callback and callback((0, retval, base.monotonic()))
                 except asyncio.TimeoutError:
                     timeout_callback and timeout_callback(
                         soft_timeout,
                         timeout,
                     )
                     raise
-
-                callback and callback((0, retval, base.monotonic()))
 
             except Exception as e:
                 type_, _, tb = sys.exc_info()
