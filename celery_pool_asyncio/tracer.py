@@ -324,3 +324,7 @@ def build_async_tracer(
         return trace_ok_t(R, I, T, Rstr)
 
     return trace_task
+
+
+def patch_trace():
+    trace.build_tracer = build_async_tracer

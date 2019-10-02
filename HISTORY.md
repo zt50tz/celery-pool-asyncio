@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.1.6]
+- Avoid building trace twice
+
 ## [0.1.5]
 - Fix graceful shutdown
 

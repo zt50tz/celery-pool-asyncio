@@ -2,10 +2,13 @@ import sys
 import asyncio
 from threading import Thread
 from celery.concurrency import base
-from .tracer import build_async_tracer
+from .tracer import patch_trace
 from billiard.einfo import ExceptionInfo
 from celery.app import trace
 from kombu.serialization import loads as loads_message
+
+
+patch_trace()
 
 
 class TaskPool(base.BasePool):
@@ -131,22 +134,12 @@ class TaskPool(base.BasePool):
         **options,
     ):
         with self:
-            app = coro_function.app
-
             accept_callback and accept_callback(
                 base.os.getpid(),
                 base.monotonic(),
             )
 
             try:
-                coro_function.__trace__ = build_async_tracer(
-                    coro_function.name,
-                    coro_function,
-                    eager=True,
-                    propagate=app.conf.task_eager_propagates,
-                    app=app,
-                )
-
                 trace_ok_coro = coro_function.__trace__(
                     task_uuid,
                     coro_args,
