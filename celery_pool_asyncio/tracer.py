@@ -1,32 +1,32 @@
 import os
-import sys
 import logging
-import traceback
 
-from warnings import warn
-
-from celery import group, signals, states
+from celery import canvas
 from celery.app import trace
-from celery.utils.saferepr import saferepr
-from celery.concurrency import base
-from celery._state import _task_stack
-from celery.exceptions import Ignore, InvalidTaskError, Reject, Retry
-
-from billiard.einfo import ExceptionInfo
-
-from kombu.exceptions import EncodeError
-
-logger = logging.getLogger(__name__)
 
 
-STARTED = states.STARTED
-SUCCESS = states.SUCCESS
-IGNORED = states.IGNORED
-REJECTED = states.REJECTED
-RETRY = states.RETRY
-FAILURE = states.FAILURE
-EXCEPTION_STATES = states.EXCEPTION_STATES
-IGNORE_STATES = frozenset({IGNORED, RETRY, REJECTED})
+logger = trace.logger
+_does_info = logger.isEnabledFor(logging.INFO)
+
+_task_stack = trace._task_stack
+saferepr = trace.saferepr
+group = trace.group
+signals = trace.signals
+
+Ignore = trace.Ignore
+InvalidTaskError = trace.InvalidTaskError
+Reject = trace.Reject
+Retry = trace.Retry
+EncodeError = trace.EncodeError
+ExceptionInfo = trace.ExceptionInfo
+
+STARTED = trace.STARTED
+SUCCESS = trace.SUCCESS
+IGNORED = trace.IGNORED
+REJECTED = trace.REJECTED
+RETRY = trace.RETRY
+FAILURE = trace.FAILURE
+EXCEPTION_STATES = trace.EXCEPTION_STATES
 
 prerun_receivers = signals.task_prerun.receivers
 postrun_receivers = signals.task_postrun.receivers
@@ -39,26 +39,7 @@ send_success = signals.task_success.send
 push_task = _task_stack.push
 pop_task = _task_stack.pop
 
-
-def info(fmt, context):
-    """Log 'fmt % context' with severity 'INFO'.
-
-    'context' is also passed in extra with key 'data' for custom handlers.
-    """
-    logger.info(fmt, context, extra={'data': context})
-
-
-def report_internal_error(task, exc):
-    _type, _value, _tb = sys.exc_info()
-    try:
-        _value = task.backend.prepare_exception(exc, 'pickle')
-        exc_info = ExceptionInfo((_type, _value, _tb), internal=True)
-        warn(RuntimeWarning(
-            'Exception raised outside body: {0!r}:\n{1}'.format(
-                exc, exc_info.traceback)))
-        return exc_info
-    finally:
-        del _tb
+signature = canvas.maybe_signature  # maybe_ does not clone if already
 
 
 def build_async_tracer(
@@ -71,7 +52,7 @@ def build_async_tracer(
     eager=False,
     propagate=False,
     app=None,
-    monotonic=base.monotonic,
+    monotonic=trace.monotonic,
     trace_ok_t=trace.trace_ok_t,
     IGNORE_STATES=trace.IGNORE_STATES,
 ):
@@ -134,26 +115,16 @@ def build_async_tracer(
     request_stack = task.request_stack
     push_request = request_stack.push
     pop_request = request_stack.pop
-    push_task = _task_stack.push
-    pop_task = _task_stack.pop
-    _does_info = logger.isEnabledFor(logging.INFO)
     resultrepr_maxsize = task.resultrepr_maxsize
-
-    prerun_receivers = signals.task_prerun.receivers
-    postrun_receivers = signals.task_postrun.receivers
-    success_receivers = signals.task_success.receivers
-
-    from celery import canvas
-    signature = canvas.maybe_signature  # maybe_ does not clone if already
 
     def on_error(request, exc, uuid, state=FAILURE, call_errbacks=True):
         if propagate:
             raise
-        I = Info(state, exc)
-        R = I.handle_error_state(
+        EI = Info(state, exc)
+        R = EI.handle_error_state(
             task, request, eager=eager, call_errbacks=call_errbacks,
         )
-        return I, R, I.state, I.retval
+        return EI, R, EI.state, EI.retval
 
     async def trace_task(uuid, args, kwargs, request=None):
         # R      - is the possibly prepared return value.
@@ -215,10 +186,8 @@ def build_async_tracer(
                     I, R, state, retval = on_error(
                         task_request, exc, uuid, RETRY, call_errbacks=False)
                 except Exception as exc:
-                    traceback.print_exc()
                     I, R, state, retval = on_error(task_request, exc, uuid)
                 except BaseException:
-                    traceback.print_exc()
                     raise
                 else:
                     try:
@@ -280,7 +249,7 @@ def build_async_tracer(
                             send_success(sender=task, result=retval)
                         if _does_info:
                             task_name = trace.get_task_name(task_request, name)
-                            info(trace.LOG_SUCCESS, {
+                            trace.info(trace.LOG_SUCCESS, {
                                 'id': uuid,
                                 'name': task_name,
                                 'return_value': Rstr,
@@ -309,16 +278,14 @@ def build_async_tracer(
                         except (KeyboardInterrupt, SystemExit, MemoryError):
                             raise
                         except Exception as exc:
-                            traceback.print_exc()
                             logger.error('Process cleanup failed: %r', exc,
                                          exc_info=True)
         except MemoryError:
             raise
         except Exception as exc:
-            traceback.print_exc()
             if eager:
                 raise
-            R = report_internal_error(task, exc)
+            R = trace.report_internal_error(task, exc)
             if task_request is not None:
                 I, _, _, _ = on_error(task_request, exc, uuid)
         return trace_ok_t(R, I, T, Rstr)
