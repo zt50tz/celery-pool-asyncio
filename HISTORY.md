@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.1.8]
+- Cleanup tracer, use celery.app.trace namespase where it possible
+
 ## [0.1.7]
 - Refactor monkey, split it
 - Move patch_send_task to own function
