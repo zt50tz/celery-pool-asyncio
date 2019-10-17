@@ -3,12 +3,14 @@ import asyncio
 from threading import Thread
 from celery.concurrency import base
 from .tracer import patch_trace
+from .drainer import setup_environment
 from billiard.einfo import ExceptionInfo
 from celery.app import trace
 from kombu.serialization import loads as loads_message
 
 
 patch_trace()
+setup_environment()
 
 
 class TaskPool(base.BasePool):
@@ -23,6 +25,15 @@ class TaskPool(base.BasePool):
         self.loop_runner.start()
         self.running_tasks = 0
         self.stopping = False
+
+        coro = self.after_start()
+        asyncio.run_coroutine_threadsafe(
+            coro,
+            self._pool,
+        )
+
+    async def after_start(self):
+        pass
 
     def on_stop(self):
         """Gracefully stop the pool."""
@@ -133,6 +144,9 @@ class TaskPool(base.BasePool):
         timeout=None,
         **options,
     ):
+        if self.stopping:
+            return
+
         with self:
             accept_callback and accept_callback(
                 base.os.getpid(),

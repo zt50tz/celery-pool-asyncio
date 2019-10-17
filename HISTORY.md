@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.9]
+- Large rework of `await AsyncResult.get()`
+    - Works much better than earlier, but it's crap still
+    - Added outnumber of monkey-patches
+- Fixed race condition on first microseconds of pool shutdown
+
 ## [0.1.8]
 - Cleanup tracer, use celery.app.trace namespase where it possible
 
