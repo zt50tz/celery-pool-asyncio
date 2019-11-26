@@ -1,10 +1,6 @@
 import socket
 import celery.backends.asynchronous as asynchronous
 
-from . import asynchronous as local_asynchronous
-from . import backends
-from . import worker
-
 
 @asynchronous.register_drainer('asyncio')
 class asyncioDrainer(asynchronous.Drainer):
@@ -43,6 +39,3 @@ def _detect_environment():
 def setup_environment():
     from kombu.utils import compat
     compat._detect_environment = _detect_environment
-    worker.patch_worker()
-    local_asynchronous.patch_result()
-    backends.patch_backends()

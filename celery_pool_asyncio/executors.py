@@ -1,16 +1,16 @@
 import sys
-import asyncio
-from threading import Thread
 from celery.concurrency import base
-from .tracer import patch_trace
-from .drainer import setup_environment
 from billiard.einfo import ExceptionInfo
 from celery.app import trace
 from kombu.serialization import loads as loads_message
 
+from . import pool
+from . import tracer
+from . import drainer
 
-patch_trace()
-setup_environment()
+
+tracer.patch_trace()
+#drainer.setup_environment()
 
 
 class TaskPool(base.BasePool):
@@ -19,18 +19,11 @@ class TaskPool(base.BasePool):
     task_join_will_block = False
 
     def on_start(self):
-        self._pool = asyncio.get_event_loop()
-        self.loop_runner = Thread(target=self._pool.run_forever)
-        self.loop_runner.daemon = True
-        self.loop_runner.start()
         self.running_tasks = 0
         self.stopping = False
 
         coro = self.after_start()
-        asyncio.run_coroutine_threadsafe(
-            coro,
-            self._pool,
-        )
+        pool.run(coro)
 
     async def after_start(self):
         pass
@@ -39,29 +32,26 @@ class TaskPool(base.BasePool):
         """Gracefully stop the pool."""
         self.stopping = True
         self.try_stop()
-        self.loop_runner.join()
+        pool.loop_runner.join()
 
     async def async_shutdown(self):
         """Shutdown works fine inside eventloop thread only"""
-        self._pool.stop()
-        await self._pool.shutdown_asyncgens()
-        await self._pool.aclose()
+        pool.loop.stop()
+        await pool.loop.shutdown_asyncgens()
+        await pool.loop.aclose()
 
     def try_stop(self):
         """Shutdown should be happend after last task has been done"""
         if self.running_tasks == 0:
             coro = self.async_shutdown()
-            asyncio.run_coroutine_threadsafe(
-                coro,
-                self._pool,
-            )
+            pool.run(coro)
 
     def on_terminate(self):
         """Force terminate the pool."""
-        self._pool.stop()
-        yield from self._pool.shutdown_asyncgens()
-        self._pool.close()
-        self.loop_runner.stop()
+        pool.loop.stop()
+        yield from pool.loop.shutdown_asyncgens()
+        pool.loop.close()
+        pool.loop_runner.stop()
 
     def restart(self):
         self.on_stop()
@@ -117,10 +107,7 @@ class TaskPool(base.BasePool):
             **options,
         )
 
-        asyncio.run_coroutine_threadsafe(
-            coro,
-            self._pool,
-        )
+        pool.run(coro)
 
     def __enter__(self):
         self.running_tasks += 1
