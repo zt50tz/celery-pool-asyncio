@@ -11,11 +11,10 @@ def gentask(corofunc):
     return wrapper
 
 
-def to_async(callback, as_task=False):
+def to_async(callback, as_task=True):
     corofunc = sync.sync_to_async(callback)
 
-    if as_task and pool.loop:
-        print(callback)
+    if as_task and pool.pool:
         corofunc = gentask(corofunc)
 
     return corofunc

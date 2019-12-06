@@ -1,9 +1,7 @@
 from .monkey_utils import to_async
 
-from . import beat
 from . import backends
 from . import worker
-from . import drainer
 from . import asynchronous as local_asynchronous
 
 
@@ -19,5 +17,3 @@ def patch(as_task=True):
     worker.patch_worker()
     local_asynchronous.patch_result()
     backends.patch_backends()
-    beat.patch_beat()
-    drainer.setup_environment

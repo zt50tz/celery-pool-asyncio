@@ -1,4 +1,5 @@
 import sys
+import asyncio
 from celery.concurrency import base
 from billiard.einfo import ExceptionInfo
 from celery.app import trace
@@ -10,7 +11,7 @@ from . import drainer
 
 
 tracer.patch_trace()
-#drainer.setup_environment()
+drainer.setup_environment()
 
 
 class TaskPool(base.BasePool):
@@ -32,26 +33,20 @@ class TaskPool(base.BasePool):
         """Gracefully stop the pool."""
         self.stopping = True
         self.try_stop()
-        pool.loop_runner.join()
-
-    async def async_shutdown(self):
-        """Shutdown works fine inside eventloop thread only"""
-        pool.loop.stop()
-        await pool.loop.shutdown_asyncgens()
-        await pool.loop.aclose()
+        pool.pool.join()
 
     def try_stop(self):
         """Shutdown should be happend after last task has been done"""
         if self.running_tasks == 0:
-            coro = self.async_shutdown()
-            pool.run(coro)
+            coro = pool.pool and pool.pool.shutdown()
+            coro and pool.run(coro)
 
     def on_terminate(self):
         """Force terminate the pool."""
         pool.loop.stop()
         yield from pool.loop.shutdown_asyncgens()
         pool.loop.close()
-        pool.loop_runner.stop()
+        pool.pool.stop()
 
     def restart(self):
         self.on_stop()

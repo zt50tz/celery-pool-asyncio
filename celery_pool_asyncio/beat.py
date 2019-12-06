@@ -1,72 +1,65 @@
-# import asyncio
+import asyncio
+import traceback
 from celery import beat
 
 from . import pool
 
 
-async def apply_async(self, entry, producer=None, advance=True, **kwargs):
-    # Update time-stamps and run counts before we actually execute,
-    # so we have that done if an exception is raised (doesn't schedule
-    # forever.)
-    entry = self.reserve(entry) if advance else entry
-    task = self.app.tasks.get(entry.task)
+async def Service__async_run(self):
+    while not self._is_shutdown.is_set():
+        interval = await self.scheduler.tick()
+        if interval and interval > 0.0:
+            beat.debug(
+                'beat: Waking up %s.',
+                beat.humanize_seconds(interval, prefix='in '),
+            )
+            await asyncio.sleep(interval)
+            if self.scheduler.should_sync():
+                self.scheduler._do_sync()
 
+
+async def Service__async_start(self):
     try:
-        if task:
-            return await task.apply_async(
-                entry.args, entry.kwargs,
-                producer=producer,
-                **entry.options,
-            )
-        else:
-            return await self.send_task(
-                entry.task,
-                entry.args,
-                entry.kwargs,
-                producer=producer,
-                **entry.options,
-            )
-    except Exception as exc:  # pylint: disable=broad-except
-        excmsg = "Couldn't apply scheduled task {entry.name}: {exc}".format(
-            entry=entry,
-            exc=exc,
-        )
-        beat.reraise(
-            beat.SchedulingError,
-            beat.SchedulingError(excmsg),
-            beat.sys.exc_info()[2],
-        )
+        await self.async_run()
+    except (KeyboardInterrupt, SystemExit):
+        self._is_shutdown.set()
     finally:
-        self._tasks_since_sync += 1
-        if self.should_sync():
-            self._do_sync()
+        traceback.print_exc()
+        self.sync()
 
 
-def apply_entry(self, entry, producer=None):
-    beat.info('Scheduler: Sending due task %s (%s)', entry.name, entry.task)
-    try:
-        coro = self.apply_async(
-            entry=entry,
-            producer=producer,
-            advance=False,
-        )
-        result = pool.run(coro)
-    except Exception as exc:  # pylint: disable=broad-except
-        beat.error(
-            'Message Error: %s\n%s',
-            exc,
-            beat.traceback.format_stack(),
-            exc_info=True,
-        )
-    else:
-        beat.debug(
-            '%s sent. id->%s',
-            entry.task,
-            result.id,
-        )
+def Service__start(self, embedded_process=False):
+    beat.info('beat: Starting...')
+    beat.debug(
+        'beat: Ticking with max interval->%s',
+        beat.humanize_seconds(self.scheduler.max_interval),
+    )
+
+    beat.signals.beat_init.send(sender=self)
+    if embedded_process:
+        beat.signals.beat_embedded_init.send(sender=self)
+        beat.platforms.set_process_title('celery beat')
+
+    coro = self.async_start()
+    pool.run(coro)
+    pool.join()
+
+
+def Service__stop(self, wait=False):
+    beat.info('beat: Shutting down...')
+    self._is_shutdown.set()
+    coro = pool.pool and pool.pool.shutdown()
+    coro and pool.pool.run(coro)
+    wait and pool.join()  # block until shutdown done.
+
+
+def patch_Service():
+    Service = beat.Service
+    Service.async_run = Service__async_run
+    Service.async_start = Service__async_start
+    Service.start = Service__start
+    Service.stop = Service__stop
 
 
 def patch_beat():
-    ScheduleEntry = beat.ScheduleEntry
-    ScheduleEntry.apply_async = apply_async
-    ScheduleEntry.apply_entry = apply_entry
+    patch_Service()
