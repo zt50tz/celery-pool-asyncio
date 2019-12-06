@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.10]
+- Make Celery Beat working
+    - Add async Celery Scheduler
+    - More monkey patching
+- Move loop and loop_runner to own module
+    - Avoid creating multiple loops and loop_runners per application
+
 ## [0.1.9]
 - Large rework of `await AsyncResult.get()`
     - Works much better than earlier, but it's crap still
@@ -11,12 +18,12 @@
 
 ## [0.1.7]
 - Refactor monkey, split it
-- Move patch_send_task to own function
-- Add patch_result_get to await AsyncResult.get
+- Move `patch_send_task` to own function
+- Add `patch_result_get` to `await AsyncResult.get`
 
 ## [0.1.6]
 - Avoid building trace twice
-- Also this small performance optimization fixed AsyncResult.get
+- Also this small performance optimization fixed `AsyncResult.get`
 
 ## [0.1.5]
 - Fix graceful shutdown

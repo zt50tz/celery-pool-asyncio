@@ -1,6 +1,8 @@
 import asyncio
 from asgiref import sync
 
+from . import pool
+
 
 def gentask(corofunc):
     def wrapper(*args, **kwargs):
@@ -12,7 +14,7 @@ def gentask(corofunc):
 def to_async(callback, as_task=True):
     corofunc = sync.sync_to_async(callback)
 
-    if as_task:
+    if as_task and pool.pool:
         corofunc = gentask(corofunc)
 
     return corofunc
