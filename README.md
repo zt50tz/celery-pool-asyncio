@@ -49,8 +49,9 @@ $ celery worker -A hello_async_celery.app -P celery_pool_asyncio:TaskPool
 Monkey patching: wtf and why
 --------
 
-There are many monkey patches should be applied to make application working.
-You can disable some of them by setting environment variable `CPA_MONKEY_DENY`.
+There are many monkey patches should be applied to make application working, and
+some of them should be applied as early as possible. You can disable some of
+them by setting environment variable `CPA_MONKEY_DENY`.
 
 Except critical for work features it allows:
 ```
