@@ -19,7 +19,7 @@ if monkey_available('CELERY.SEND_TASK'):
 # --- celery.worker.worker.WorkController
 from celery.worker.worker import WorkController
 
-if monkey_available('WORKCONTROLLER.USE_EVENTLOOP):
+if monkey_available('WORKCONTROLLER.USE_EVENTLOOP'):
     WorkController.should_use_eventloop = worker.should_use_eventloop
 
 # --- celery.backends.asynchronous.BaseResultConsumer

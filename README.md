@@ -78,6 +78,8 @@ Disabling is available for:
 - `BEAT.SERVICE.STOP`
 - `BUILD_TRACER`
 - `KOMBU.UTILS.COMPAT`
+- `AMQP_BACKEND`
+- `RPC_BACKEND`
 
 
 Scheduling
