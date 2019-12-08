@@ -1,7 +1,4 @@
 from celery import beat
-from .beat import patch_beat
-
-patch_beat()
 
 
 class AsyncSchedulerMixin:

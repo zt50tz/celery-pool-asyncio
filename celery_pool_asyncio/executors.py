@@ -6,12 +6,6 @@ from celery.app import trace
 from kombu.serialization import loads as loads_message
 
 from . import pool
-from . import tracer
-from . import drainer
-
-
-tracer.patch_trace()
-drainer.setup_environment()
 
 
 class TaskPool(base.BasePool):

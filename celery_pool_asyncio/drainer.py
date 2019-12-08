@@ -34,8 +34,3 @@ class asyncioDrainer(asynchronous.Drainer):
 
 def _detect_environment():
     return 'asyncio'
-
-
-def setup_environment():
-    from kombu.utils import compat
-    compat._detect_environment = _detect_environment
