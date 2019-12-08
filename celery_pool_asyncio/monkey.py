@@ -30,7 +30,7 @@ from celery.app import Celery
 
 if 'CELERY.SEND_TASK' not in deny_targets:
     """Celery task sending can be optionally awaited"""
-    Celery.send_task = to_async(Celery.send_task, as_task=True)
+    Celery.send_task = to_async(Celery.send_task, True)
 
 
 # --- celery.worker.worker.WorkController
@@ -60,7 +60,7 @@ if 'ALL_BACKENDS' not in deny_targets:
 
 
 # --- celery.beat.Service
-Service = beat.Service
+Service = beat.beat.Service
 
 if 'BEAT.SERVICE.START' not in deny_targets:
     Service.start = beat.Service__start
@@ -73,7 +73,7 @@ if 'BEAT.SERVICE.STOP' not in deny_targets:
 
 # --- celery.app.trace.build_tracer
 if 'BUILD_TRACER' not in deny_targets:
-    tracer.trace.build_tracer = build_async_tracer
+    tracer.trace.build_tracer = tracer.build_async_tracer
 
 # --- kombu.utils.compat
 from kombu.utils import compat
