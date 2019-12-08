@@ -1,15 +1,6 @@
 import os
 from .monkey_utils import to_async
 
-from . import backends
-from . import worker
-from . import beat
-from . import asynchronous
-from . import tracer
-from . import drainer
-
-
-
 def init_deny_targets():
     """Read and parse environment variable"""
     deny_targets = os.getenv('CPA_MONKEY_DENY')
@@ -25,11 +16,19 @@ deny_targets = init_deny_targets()
 
 # --- Apply all patches ---
 
+from . import backends
+from . import worker
+from . import beat
+from . import asynchronous
+from . import tracer
+from . import drainer
+
+
 # --- celery.app.Celery
 from celery.app import Celery
 
 if 'CELERY.SEND_TASK' not in deny_targets:
-    """Celery task sending can be optionally awaited"""
+    """Celery task sending can be awaited"""
     Celery.send_task = to_async(Celery.send_task, True)
 
 
@@ -56,6 +55,7 @@ if 'ASYNCBACKENDMIXIN.WAIT_FOR_PENDING' not in deny_targets:
 
 
 if 'ALL_BACKENDS' not in deny_targets:
+    """Celery AsyncResult.get() can be awaited"""
     backends.patch_backends()
 
 
