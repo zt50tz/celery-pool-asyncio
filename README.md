@@ -20,6 +20,7 @@ from celery import Celery
 # when you use REPL or run web application app it's good idea to import
 # celery_pool_asyncio module
 import celery_pool_asyncio  # noqa
+# Sometimes noqa does not disable linter (Spyder IDE)
 celery_pool_asyncio.__package__
 
 

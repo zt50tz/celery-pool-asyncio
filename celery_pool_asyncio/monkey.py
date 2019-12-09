@@ -12,7 +12,7 @@ from . import drainer
 from celery.app import Celery
 
 if monkey_available('CELERY.SEND_TASK'):
-    """Celery task sending can be awaited"""
+    # Celery task sending can be awaited
     Celery.send_task = to_async(Celery.send_task, True)
 
 
@@ -39,7 +39,7 @@ if monkey_available('ASYNCBACKENDMIXIN.WAIT_FOR_PENDING'):
 
 
 if monkey_available('ALL_BACKENDS'):
-    """Celery AsyncResult.get() can be awaited"""
+    # Celery AsyncResult.get() can be awaited
     backends.patch_backends()
 
 
