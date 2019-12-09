@@ -12,10 +12,17 @@ Features
 ```
 import asyncio
 from celery import Celery
-from celery_pool_asyncio import monkey as cpa_monkey
 
-# Apply monkey patches before creating celery app
-cpa_monkey.patch()
+# celery_pool_asyncio importing is optional
+# It imports when you run worker or beat if you define pool or scheduler
+# but it does not imports when you open REPL or when you run web application.
+# If you want to apply monkey patches anyway to make identical environment
+# when you use REPL or run web application app it's good idea to import
+# celery_pool_asyncio module
+import celery_pool_asyncio  # noqa
+# Sometimes noqa does not disable linter (Spyder IDE)
+celery_pool_asyncio.__package__
+
 
 app = Celery()
 
@@ -43,25 +50,38 @@ $ celery worker -A hello_async_celery.app -P celery_pool_asyncio:TaskPool
 Monkey patching: wtf and why
 --------
 
-There are many monkey patches applies automatically, but some of them are
-optional or may change application behavior. It's ok in general, but exceptions
-are possible. That's why it's good idea to apply it manually.
+There are many monkey patches should be applied to make application working, and
+some of them should be applied as early as possible. You can disable some of
+them by setting environment variable `CPA_MONKEY_DENY`.
 
-Allows:
+Except critical for work features it allows:
 ```
+# await data sending to broker
 async_result = await my_simple_task.delay()
+
+# await wainting for AsyncResult
 result = await async_result.get()
 ```
 
-Manual targets:
-- `celery.app.Celery.send_task`
-- `celery.worker.worker.WorkController.should_use_eventloop`
-- `celery.backends.asynchronous.BaseResultConsumer._wait_for_pending`
-- `celery.backends.asynchronous.BaseResultConsumer.drain_events_until`
-- `celery.backends.asynchronous.AsyncBackendMixin.wait_for_pending`
-- `celery.backends.amqp.AMQPBackend.drain_events`
-- `celery.backends.amqp.AMQPBackend.get_many`
-- `celery.backends.rpc.ResultConsumer.drain_events`
+You can manually disable some of them by enumerating it comma separated:
+```
+$ env CPA_MONKEY_DENY=CELERY.SEND_TASK,ALL_BACKENDS celery worker -A hello_async_celery.app -P celery_pool_asyncio:TaskPool
+```
+
+Disabling is available for:
+- `CELERY.SEND_TASK`
+- `WORKCONTROLLER.USE_EVENTLOOP`
+- `BASERESULTCONSUMER.WAIT_FOR_PENDING`
+- `BASERESULTCONSUMER.DRAIN_EVENTS_UNTIL`
+- `ASYNCBACKENDMIXIN.WAIT_FOR_PENDING`
+- `ALL_BACKENDS`
+- `BEAT.SERVICE.START`
+- `BEAT.SERVICE.STOP`
+- `BUILD_TRACER`
+- `KOMBU.UTILS.COMPAT`
+- `AMQP_BACKEND`
+- `RPC_BACKEND`
+
 
 Scheduling
 --------

@@ -42,10 +42,3 @@ async def drain_events_until(self, p, timeout=None, on_interval=None):
         on_interval=on_interval,
     ):
         yield
-
-
-def patch_result():
-    import celery.backends.asynchronous as asynchronous
-    asynchronous.BaseResultConsumer._wait_for_pending = _wait_for_pending
-    asynchronous.BaseResultConsumer.drain_events_until = drain_events_until
-    asynchronous.AsyncBackendMixin.wait_for_pending = wait_for_pending

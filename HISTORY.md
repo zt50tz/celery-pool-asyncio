@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.1.11]
+- Total monkey patching refactor. Now it is enabled by default, but you can
+manually disable some of features using environment variable `CPA_MONKEY_DENY`
+
 ## [0.1.10]
 - Make Celery Beat working
     - Add async Celery Scheduler

@@ -51,15 +51,3 @@ def Service__stop(self, wait=False):
     coro = pool.pool and pool.pool.shutdown()
     coro and pool.pool.run(coro)
     wait and pool.join()  # block until shutdown done.
-
-
-def patch_Service():
-    Service = beat.Service
-    Service.async_run = Service__async_run
-    Service.async_start = Service__async_start
-    Service.start = Service__start
-    Service.stop = Service__stop
-
-
-def patch_beat():
-    patch_Service()
