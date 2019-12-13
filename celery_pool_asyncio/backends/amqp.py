@@ -1,6 +1,7 @@
 from celery.backends import amqp
 
 from ..monkey_utils import to_async
+from ..environment_variables import monkey_available
 
 
 async def get_many(
@@ -61,7 +62,11 @@ async def get_many(
                     on_interval()
 
 
-def patch_backend():
-    AMQPBackend = amqp.AMQPBackend
+# --- celery.backends.amqp.AMQPBackend
+AMQPBackend = amqp.AMQPBackend
+
+if monkey_available('AMQPBACKEND.DRAIN_EVENTS'):
     AMQPBackend.drain_events = to_async(AMQPBackend.drain_events, False)
+
+if monkey_available('AMQPBACKEND.GET_MANY'):
     AMQPBackend.get_many = get_many

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.12]
+- Finalize monkey patcher refactoring. Now you able to switch off applying of
+any monkey patch. Remember with great power comes great responsibility
+- Implement `soft_time_limit`
+- Fix keywords
+
 ## [0.1.11]
 - Total monkey patching refactor. Now it is enabled by default, but you can
 manually disable some of features using environment variable `CPA_MONKEY_DENY`

@@ -1,8 +1,11 @@
 import os
 import logging
+import asyncio
+
 
 from celery import canvas
 from celery.app import trace
+from celery.exceptions import SoftTimeLimitExceeded
 
 
 logger = trace.logger
@@ -40,6 +43,22 @@ push_task = _task_stack.push
 pop_task = _task_stack.pop
 
 signature = canvas.maybe_signature  # maybe_ does not clone if already
+
+
+async def await_anyway(aiotask):
+    if aiotask is None:
+        return
+
+    if aiotask.done():
+        return
+
+    aiotask.cancel()
+    try:
+        await aiotask
+        # "RuntimeError: cannot reuse already awaited coroutine"
+    except RuntimeError:
+        # but should
+        pass
 
 
 def build_async_tracer(
@@ -138,7 +157,7 @@ def build_async_tracer(
         # for performance reasons, and because the function is so long
         # we want the main variables (I, and R) to stand out visually from the
         # the rest of the variables, so breaking PEP8 is worth it ;)
-        R = I = T = Rstr = retval = state = None
+        R = I = T = Rstr = retval = state = aiotask = None
         task_request = None
         time_start = monotonic()
         try:
@@ -172,7 +191,23 @@ def build_async_tracer(
 
                 # -*- TRACE -*-
                 try:
-                    R = retval = await fun(*args, **kwargs)
+                    coro = fun(*args, **kwargs)
+
+                    done, pending = await asyncio.wait(
+                        [coro],
+                        timeout=task.soft_time_limit,
+                    )
+
+                    if done:
+                        aiotask = done.pop()
+                        R = retval = aiotask.result()
+                    else:
+                        aiotask = pending.pop()
+                        try:
+                            await coro.throw(SoftTimeLimitExceeded())
+                        except StopIteration as e:
+                            R = retval = e.value
+
                     state = SUCCESS
                 except Reject as exc:
                     I, R = Info(REJECTED, exc), ExceptionInfo(internal=True)
@@ -263,6 +298,7 @@ def build_async_tracer(
                             state, retval, uuid, args, kwargs, None,
                         )
             finally:
+                await await_anyway(aiotask)
                 try:
                     if postrun_receivers:
                         send_postrun(sender=task, task_id=uuid, task=task,

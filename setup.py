@@ -40,13 +40,13 @@ setup(
     long_description=long_description,
     long_description_content_type='text/markdown',  # This is important!
     include_package_data=True,
-    keywords='celery_pool_asyncio',
+    keywords='celery asyncio pool python3 background-jobs concurrency',
     name='celery-pool-asyncio',
     packages=find_packages(),
     setup_requires=setup_requirements,
     test_suite='tests',
     #tests_require=test_requirements,
     url='https://github.com/kai3341/celery-pool-asyncio',
-    version='0.1.11',
+    version='0.1.12',
     zip_safe=True,
 )

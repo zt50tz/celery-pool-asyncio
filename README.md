@@ -29,8 +29,8 @@ app = Celery()
 
 @app.task(
     bind=True,
-    soft_time_limit=None,  # temporary unimplemented. You can help me
-    time_limit=300,  # raises futures.TimeoutError on timeout
+    soft_time_limit=42,  # raises celery.exceptions.SoftTimeLimitExceeded inside the coroutine
+    time_limit=300,  # breaks coroutine execution with futures.TimeoutError
 )
 async def my_task(self, *args, **kwargs):
     await asyncio.sleep(5)
@@ -51,8 +51,9 @@ Monkey patching: wtf and why
 --------
 
 There are many monkey patches should be applied to make application working, and
-some of them should be applied as early as possible. You can disable some of
-them by setting environment variable `CPA_MONKEY_DENY`.
+some of them should be applied as early as possible. You are able to switch off
+any of them by setting environment variable `CPA_MONKEY_DENY`. Remember you
+should have a great reason to do it.
 
 Except critical for work features it allows:
 ```
@@ -63,7 +64,7 @@ async_result = await my_simple_task.delay()
 result = await async_result.get()
 ```
 
-You can manually disable some of them by enumerating it comma separated:
+You can manually disable any of them by enumerating it comma separated:
 ```
 $ env CPA_MONKEY_DENY=CELERY.SEND_TASK,ALL_BACKENDS celery worker -A hello_async_celery.app -P celery_pool_asyncio:TaskPool
 ```
@@ -79,6 +80,9 @@ Disabling is available for:
 - `BEAT.SERVICE.STOP`
 - `BUILD_TRACER`
 - `KOMBU.UTILS.COMPAT`
+- `RPC.RESULTCONSUMER.DRAIN_EVENTS`
+- `AMQPBACKEND.DRAIN_EVENTS`
+- `AMQPBACKEND.GET_MANY`
 - `AMQP_BACKEND`
 - `RPC_BACKEND`
 
@@ -102,6 +106,7 @@ $ celery worker -A hello_async_celery.app -P celery_pool_asyncio:TaskPool --sche
 
 WARNING: embeded scheduler startup is not stable. It starts correctly in ~50%
 of cases. It looks like race condition. But after correct startup it works well.
+That's why it's good idea to run scheduler in separated process.
 
 More examples
 --------

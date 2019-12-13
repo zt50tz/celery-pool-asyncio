@@ -1,6 +1,5 @@
 from .environment_variables import monkey_available
 from .monkey_utils import to_async
-from . import backends
 from . import worker
 from . import beat
 from . import asynchronous
@@ -40,7 +39,8 @@ if monkey_available('ASYNCBACKENDMIXIN.WAIT_FOR_PENDING'):
 
 if monkey_available('ALL_BACKENDS'):
     # Celery AsyncResult.get() can be awaited
-    backends.patch_backends()
+    from . import backends  # noqa
+    backends.__package__
 
 
 # --- celery.beat.Service
