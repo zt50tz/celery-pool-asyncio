@@ -5,7 +5,12 @@ import asyncio
 
 from celery import canvas
 from celery.app import trace
-from celery.exceptions import SoftTimeLimitExceeded
+from celery.exceptions import (
+    SoftTimeLimitExceeded,
+    TimeoutError as CeleryTimeoutError,
+)
+from .exceptions import SoftRevoked
+from . import coro_utils
 
 
 logger = trace.logger
@@ -43,22 +48,6 @@ push_task = _task_stack.push
 pop_task = _task_stack.pop
 
 signature = canvas.maybe_signature  # maybe_ does not clone if already
-
-
-async def await_anyway(aiotask):
-    if aiotask is None:
-        return
-
-    if aiotask.done():
-        return
-
-    aiotask.cancel()
-    try:
-        await aiotask
-        # "RuntimeError: cannot reuse already awaited coroutine"
-    except RuntimeError:
-        # but should
-        pass
 
 
 def build_async_tracer(
@@ -157,7 +146,7 @@ def build_async_tracer(
         # for performance reasons, and because the function is so long
         # we want the main variables (I, and R) to stand out visually from the
         # the rest of the variables, so breaking PEP8 is worth it ;)
-        R = I = T = Rstr = retval = state = aiotask = None
+        R = I = T = Rstr = retval = state = None
         task_request = None
         time_start = monotonic()
         try:
@@ -192,35 +181,69 @@ def build_async_tracer(
                 # -*- TRACE -*-
                 try:
                     coro = fun(*args, **kwargs)
+                    coro_task = asyncio.create_task(coro)
 
-                    done, pending = await asyncio.wait(
-                        [coro],
+                    waiter = asyncio.wait(
+                        [coro_task],
                         timeout=task.soft_time_limit,
                     )
 
-                    if done:
-                        aiotask = done.pop()
-                        R = retval = aiotask.result()
-                    else:
-                        aiotask = pending.pop()
-                        try:
-                            await coro.throw(SoftTimeLimitExceeded())
-                        except StopIteration as e:
-                            R = retval = e.value
+                    waiter_task = asyncio.create_task(waiter)
+
+                    try:
+                        await waiter_task
+
+                        if coro_task.done():
+                            R = retval = coro_task.result()
+                        else:
+                            R = retval = await coro_utils.send_exception(
+                                coro,
+                                SoftTimeLimitExceeded(),
+                            )
+                            await coro_utils.await_anyway(coro_task)
+
+                    except asyncio.CancelledError as exc:
+                        waiter_task.cancel()
+                        coro_task.cancel()
+                        waiter.close()
+                        coro.close()
+                        exc = CeleryTimeoutError(exc)
+                        exc = str(exc)
+                        I, R, state, retval = on_error(task_request, exc, uuid)
+
+                    except SoftRevoked:
+                        R = retval = await coro_utils.send_exception(
+                            coro,
+                            SoftTimeLimitExceeded(),
+                        )
+                        await coro_utils.await_anyway(coro_task)
 
                     state = SUCCESS
                 except Reject as exc:
-                    I, R = Info(REJECTED, exc), ExceptionInfo(internal=True)
+                    waiter_task.cancel()
+                    coro_task.cancel()
+                    try:
+                        await coro_utils.await_anyway(coro_task)
+                    except asyncio.CancelledError:
+                        pass
+
+                    I = Info(REJECTED, exc)
+                    R = ExceptionInfo(internal=True)
                     state, retval = I.state, I.retval
                     I.handle_reject(task, task_request)
                 except Ignore as exc:
-                    I, R = Info(IGNORED, exc), ExceptionInfo(internal=True)
+                    I = Info(IGNORED, exc)
+                    R = ExceptionInfo(internal=True)
                     state, retval = I.state, I.retval
                     I.handle_ignore(task, task_request)
                 except Retry as exc:
                     I, R, state, retval = on_error(
                         task_request, exc, uuid, RETRY, call_errbacks=False)
+                except SoftTimeLimitExceeded as exc:
+                    I, R, state, retval = on_error(task_request, exc, uuid)
                 except Exception as exc:
+                    coro.close()
+                    await coro_utils.await_anyway(waiter_task)
                     I, R, state, retval = on_error(task_request, exc, uuid)
                 except BaseException:
                     raise
@@ -298,7 +321,7 @@ def build_async_tracer(
                             state, retval, uuid, args, kwargs, None,
                         )
             finally:
-                await await_anyway(aiotask)
+                await coro_utils.await_anyway(coro_task)
                 try:
                     if postrun_receivers:
                         send_postrun(sender=task, task_id=uuid, task=task,

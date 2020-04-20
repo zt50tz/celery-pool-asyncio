@@ -5,7 +5,20 @@ from billiard.einfo import ExceptionInfo
 from celery.app import trace
 from kombu.serialization import loads as loads_message
 
-from . import pool
+from celery.exceptions import Reject
+from .exceptions import SoftRevoked
+
+from celery.worker import control
+original_control__revoke = control.revoke
+
+register_revoke = control.control_command(
+    variadic='task_id',
+    signature='[id1 [id2 [... [idN]]]]',
+    name='revoke',
+)
+
+from . import pool  # noqa
+from . import coro_utils   # noqa
 
 
 class TaskPool(base.BasePool):
@@ -14,8 +27,12 @@ class TaskPool(base.BasePool):
     task_join_will_block = False
 
     def on_start(self):
-        self.running_tasks = 0
+        register_revoke(self.control_revoke)
+        control.revoke = self.control_revoke
+
         self.stopping = False
+        self.coroutines = {}
+        self.tasks = {}
 
         coro = self.after_start()
         pool.run(coro)
@@ -28,19 +45,54 @@ class TaskPool(base.BasePool):
         self.stopping = True
         self.try_stop()
         pool.pool.join()
+        control.revoke = original_control__revoke
 
     def try_stop(self):
         """Shutdown should be happend after last task has been done"""
-        if self.running_tasks == 0:
+        if not self.coroutines:
             coro = pool.pool and pool.pool.shutdown()
             coro and pool.run(coro)
 
     def on_terminate(self):
         """Force terminate the pool."""
+        for task_id, coro in self.coroutines.items():
+            coro.close()
+
         pool.loop.stop()
         yield from pool.loop.shutdown_asyncgens()
         pool.loop.close()
         pool.pool.stop()
+        control.revoke = original_control__revoke
+
+    control_revoke__exceptions = (
+        SoftRevoked,
+        Reject,
+    )
+
+    def control_revoke(
+        self,
+        state,
+        task_id,
+        terminate=False,
+        signal=None,
+        **kwargs,
+    ):
+        exc = self.control_revoke__exceptions[terminate]
+        task_ids = control.maybe_list(task_id) or []
+        task_ids = set(task_ids)
+        for task_id in task_ids:
+            self.send_exception(task_id, exc)
+
+    def send_exception(self, task_id, exc):
+        timeout_coro = self.do_async_soft_timeout(
+            task_id=task_id,
+            exc=exc,
+        )
+        pool.run(timeout_coro)
+
+    async def do_async_soft_timeout(self, task_id, exc):
+        coro = self.coroutines[task_id]
+        await coro_utils.send_exception(coro, exc)
 
     def restart(self):
         self.on_stop()
@@ -96,14 +148,8 @@ class TaskPool(base.BasePool):
             **options,
         )
 
+        self.coroutines[task_uuid] = coro
         pool.run(coro)
-
-    def __enter__(self):
-        self.running_tasks += 1
-
-    def __exit__(self, *args, **kwargs):
-        self.running_tasks -= 1
-        self.stopping and self.try_stop()
 
     async def task_coro(
         self,
@@ -120,38 +166,38 @@ class TaskPool(base.BasePool):
         timeout=None,
         **options,
     ):
-        if self.stopping:
-            return
-
-        with self:
+        try:
             accept_callback and accept_callback(
                 base.os.getpid(),
                 base.monotonic(),
             )
 
+            trace_ok_coro = coro_function.__trace__(
+                task_uuid,
+                coro_args,
+                coro_kwargs,
+                request,
+            )
+
             try:
-                trace_ok_coro = coro_function.__trace__(
-                    task_uuid,
-                    coro_args,
-                    coro_kwargs,
-                    request,
+                retval = await asyncio.wait_for(trace_ok_coro, timeout)
+                callback and callback((0, retval, base.monotonic()))
+            except asyncio.TimeoutError:
+                timeout_callback and timeout_callback(
+                    soft_timeout,
+                    timeout,
                 )
+                raise
 
-                try:
-                    retval = await asyncio.wait_for(trace_ok_coro, timeout)
-                    callback and callback((0, retval, base.monotonic()))
-                except asyncio.TimeoutError:
-                    timeout_callback and timeout_callback(
-                        soft_timeout,
-                        timeout,
-                    )
-                    raise
+        except Exception as e:
+            type_, _, tb = sys.exc_info()
+            reason = e
+            EI = ExceptionInfo((type_, reason, tb))
+            error_callback and error_callback(
+                EI,
+                base.monotonic(),
+            )
 
-            except Exception as e:
-                type_, _, tb = sys.exc_info()
-                reason = e
-                EI = ExceptionInfo((type_, reason, tb))
-                error_callback and error_callback(
-                    EI,
-                    base.monotonic(),
-                )
+        finally:
+            self.coroutines.pop(task_uuid)
+            self.stopping and self.try_stop()

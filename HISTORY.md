@@ -4,6 +4,7 @@
 - Finalize monkey patcher refactoring. Now you able to switch off applying of
 any monkey patch. Remember with great power comes great responsibility
 - Implement `soft_time_limit`
+- Implement `revoke`
 - Fix keywords
 
 ## [0.1.11]
