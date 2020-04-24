@@ -1,6 +1,12 @@
 Celery Pool AsyncIO
 ===============
 
+![python](https://img.shields.io/pypi/pyversions/celery-pool-asyncio.svg)
+![version](https://img.shields.io/pypi/v/celery-pool-asyncio.svg)
+![downloads](https://img.shields.io/pypi/dm/celery-pool-asyncio.svg)
+![format](https://img.shields.io/pypi/format/celery-pool-asyncio.svg)
+
+
 ![Logo](https://repository-images.githubusercontent.com/198568368/35298e00-c1e8-11e9-8bcf-76c57ee28db8)
 
 * Free software: Apache Software License 2.0
@@ -30,7 +36,7 @@ app = Celery()
 @app.task(
     bind=True,
     soft_time_limit=42,  # raises celery.exceptions.SoftTimeLimitExceeded inside the coroutine
-    time_limit=300,  # breaks coroutine execution with futures.TimeoutError
+    time_limit=300,  # breaks coroutine execution
 )
 async def my_task(self, *args, **kwargs):
     await asyncio.sleep(5)
