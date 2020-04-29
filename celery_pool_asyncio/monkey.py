@@ -1,11 +1,19 @@
 from .environment_variables import monkey_available
 from .monkey_utils import to_async
+
+
+# As early as possible
+if monkey_available('SIGNAL.SEND'):
+    from celery.utils.dispatch.signal import Signal
+    from . import signal_send
+    Signal.send = signal_send.send
+
+
 from . import worker
 from . import beat
 from . import asynchronous
 from . import tracer
 from . import drainer
-
 
 # --- celery.app.Celery
 from celery.app import Celery
@@ -60,7 +68,7 @@ if monkey_available('BUILD_TRACER'):
     tracer.trace.build_tracer = tracer.build_async_tracer
 
 # --- kombu.utils.compat
-from kombu.utils import compat
+from kombu.utils import compat  # noqa
 
 if monkey_available('KOMBU.UTILS.COMPAT'):
     compat._detect_environment = drainer._detect_environment
