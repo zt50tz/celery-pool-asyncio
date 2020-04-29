@@ -23,11 +23,16 @@ if monkey_available('CELERY.SEND_TASK'):
     Celery.send_task = to_async(Celery.send_task, True)
 
 
-# --- celery.worker.worker.WorkController
-from celery.worker.worker import WorkController
+from celery.worker import worker as cwworker
 
+# --- celery.worker.worker.WorkController
 if monkey_available('WORKCONTROLLER.USE_EVENTLOOP'):
-    WorkController.should_use_eventloop = worker.should_use_eventloop
+    cwworker.WorkController.should_use_eventloop = worker.should_use_eventloop
+
+# --- celery.worker.worker.cpu_count
+if monkey_available('WORKER.CPU_COUNT'):
+    cwworker.cpu_count = lambda: 256
+
 
 # --- celery.backends.asynchronous.BaseResultConsumer
 from celery.backends.asynchronous import BaseResultConsumer

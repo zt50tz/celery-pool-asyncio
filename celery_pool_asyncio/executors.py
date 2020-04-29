@@ -1,5 +1,6 @@
 import sys
 import asyncio
+from threading import Semaphore
 from celery.concurrency import base
 from billiard.einfo import ExceptionInfo
 from celery.app import trace
@@ -30,6 +31,7 @@ class TaskPool(base.BasePool):
         register_revoke(self.control_revoke)
         control.revoke = self.control_revoke
 
+        self.semaphore = Semaphore(self.limit - 1)
         self.stopping = False
         self.coroutines = {}
         self.tasks = {}
@@ -150,6 +152,7 @@ class TaskPool(base.BasePool):
 
         self.coroutines[task_uuid] = coro
         pool.run(coro)
+        self.semaphore.acquire()
 
     async def task_coro(
         self,
@@ -199,5 +202,6 @@ class TaskPool(base.BasePool):
             )
 
         finally:
+            self.semaphore.release()
             self.coroutines.pop(task_uuid)
             self.stopping and self.try_stop()
