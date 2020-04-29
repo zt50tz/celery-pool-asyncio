@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.2.0]
+- Allow to decorate corofunctions by `celery.signals`
+- Implement pool capacity (`-c, --concurency`)
+
 ## [0.1.12]
 - Finalize monkey patcher refactoring. Now you able to switch off applying of
 any monkey patch. Remember with great power comes great responsibility

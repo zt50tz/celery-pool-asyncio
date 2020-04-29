@@ -26,7 +26,7 @@ setup_requirements = [
 
 setup(
     classifiers=[
-        'Development Status :: 2 - Pre-Alpha',
+        'Development Status ::  4 - Beta',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: Apache Software License',
         'Natural Language :: English',
@@ -47,6 +47,6 @@ setup(
     test_suite='tests',
     #tests_require=test_requirements,
     url='https://github.com/kai3341/celery-pool-asyncio',
-    version='0.1.12',
+    version='0.2.0',
     zip_safe=True,
 )
