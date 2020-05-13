@@ -95,7 +95,7 @@ Disabling is available for:
 - `RPC_BACKEND`
 
 
-Scheduling
+[Scheduling](https://docs.celeryproject.org/en/latest/userguide/periodic-tasks.html#starting-the-scheduler)
 --------
 
 Default scheduler doesn't work. `PersistentScheduler` is subclass of default
@@ -116,7 +116,30 @@ WARNING: embeded scheduler startup is not stable. It starts correctly in ~50%
 of cases. It looks like race condition. But after correct startup it works well.
 That's why it's good idea to run scheduler in separated process.
 
+
+[Celery Signals](https://docs.celeryproject.org/en/stable/userguide/signals.html)
+--------
+```
+from celery.signals import worker_init, worker_shutting_down
+
+
+@worker_init.connect
+async def do_startup_async(sender, **kwargs):
+    # Coroutine functions are available after pool initialized
+    await MyClass.init_async()
+
+
+@worker_init.connect
+def do_startup(sender, **kwargs):
+    # regular functions are available too
+    pass
+
+
+@worker_shutting_down.connect
+async def do_shutdown(sender=None, **kwargs):
+    await MyClass.shutdown()
+```
+
 More examples
 --------
-There is an example project uses `celery-pool-asyncio`:
-https://github.com/kai3341/celery-decorator-taskcls-example
+There is an example project uses [celery-pool-asyncio](https://github.com/kai3341/celery-decorator-taskcls-example).
