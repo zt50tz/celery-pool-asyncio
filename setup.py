@@ -26,7 +26,7 @@ setup_requirements = [
 
 setup(
     classifiers=[
-        'Development Status ::  4 - Beta',
+        'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: Apache Software License',
         'Natural Language :: English',
