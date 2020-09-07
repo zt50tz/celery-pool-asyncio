@@ -14,7 +14,6 @@ from . import coro_utils
 
 
 logger = trace.logger
-_does_info = logger.isEnabledFor(logging.INFO)
 
 _task_stack = trace._task_stack
 saferepr = trace.saferepr
@@ -89,6 +88,8 @@ def build_async_tracer(
     """
     # noqa: C901
     # pylint: disable=too-many-statements
+
+    _does_info = logger.isEnabledFor(logging.INFO)
 
     # If the task doesn't define a custom __call__ method
     # we optimize it away by simply calling the run method directly,
