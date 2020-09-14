@@ -14,6 +14,8 @@ from . import beat
 from . import asynchronous
 from . import tracer
 from . import drainer
+from . import result_set
+from . import cpa_canvas
 
 # --- celery.app.Celery
 from celery.app import Celery
@@ -77,3 +79,18 @@ from kombu.utils import compat  # noqa
 
 if monkey_available('KOMBU.UTILS.COMPAT'):
     compat._detect_environment = drainer._detect_environment
+
+
+# --- celery.canvas
+from celery import canvas
+if monkey_available('CELERY.CANVAS.GROUP'):
+    canvas.group.apply_async = cpa_canvas.apply_async
+    canvas.group._apply_tasks = cpa_canvas._apply_tasks
+
+
+# --- celery.result
+from celery import result
+if monkey_available('CELERY.RESULT.RESULTSET'):
+    result.ResultSet.join = result_set.join
+    result.ResultSet.join_native = result_set.join_native
+
