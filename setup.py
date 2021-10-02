@@ -15,7 +15,7 @@ long_description = '\n\n'.join((
 ))
 
 requirements = [
-    'celery',
+    'celery<=4.4.7',
     'asgiref',
 ]
 
