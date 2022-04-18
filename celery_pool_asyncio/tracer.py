@@ -181,6 +181,7 @@ def build_async_tracer(
 
                 # -*- TRACE -*-
                 try:
+                    kwargs['celery_task_uuid'] = uuid
                     coro = fun(*args, **kwargs)
                     coro_task = asyncio.create_task(coro)
 
